@@ -35,6 +35,8 @@ are linked to 2 other processes and one of them exits). In such cases
 control message queue can overflow. When it happens, the process
 exits immediately with the reason :control-overflow.</pre></div><div class="public anchor" id="var-.21"><h3>!</h3><div class="usage"><code>(! dest message)</code></div><div class="doc"><pre class="plaintext">Sends a message to dest. dest can be a process identifier, or a
 registered name.
+If sending results in dest's inbox overflow, dest exits with reason
+:inbox-overflow.
 Returns true if message was sent (process was alive), false otherwise.
 Throws if any of arguments is nil.</pre></div></div><div class="public anchor" id="var-defn-proc"><h3>defn-proc</h3><h4 class="type">macro</h4><div class="usage"><code>(defn-proc fname args &amp; body)</code></div><div class="doc"><pre class="plaintext"></pre></div></div><div class="public anchor" id="var-defproc"><h3>defproc</h3><h4 class="type">macro</h4><div class="usage"><code>(defproc fname &amp; args-body)</code></div><div class="doc"><pre class="plaintext"></pre></div></div><div class="public anchor" id="var-demonitor"><h3>demonitor</h3><div class="usage"><code>(demonitor {:keys [other-pid], :as mref})</code></div><div class="doc"><pre class="plaintext">If mref is a reference that the calling process obtained by
 calling monitor, this monitoring is turned off. If the monitoring
@@ -134,18 +136,21 @@ Warning: this function is intended for debugging and is not to be
 used in application programs.</pre></div></div><div class="public anchor" id="var-pid.3F"><h3>pid?</h3><div class="usage"><code>(pid? pid)</code></div><div class="doc"><pre class="plaintext">Returns true if term is a process identifier, false otherwise.
 </pre></div></div><div class="public anchor" id="var-proc-fn"><h3>proc-fn</h3><h4 class="type">macro</h4><div class="usage"><code>(proc-fn args &amp; body)</code></div><div class="doc"><pre class="plaintext"></pre></div></div><div class="public anchor" id="var-receive.21"><h3>receive!</h3><h4 class="type">macro</h4><div class="usage"><code>(receive! &amp; clauses)</code></div><div class="doc"><pre class="plaintext"></pre></div></div><div class="public anchor" id="var-receive.21.21"><h3>receive!!</h3><h4 class="type">macro</h4><div class="usage"><code>(receive!! &amp; clauses)</code></div><div class="doc"><pre class="plaintext"></pre></div></div><div class="public anchor" id="var-registered"><h3>registered</h3><div class="usage"><code>(registered)</code></div><div class="doc"><pre class="plaintext">Returns a set of names of the processes that have been registered.
 </pre></div></div><div class="public anchor" id="var-self"><h3>self</h3><div class="usage"><code>(self)</code></div><div class="doc"><pre class="plaintext">Returns the process identifier of the calling process.
-Throws when called not in process context.</pre></div></div><div class="public anchor" id="var-spawn"><h3>spawn</h3><div class="usage"><code>(spawn proc-func args {:keys [link-to inbox-size flags register], pname :name, :as options})</code></div><div class="doc"><pre class="plaintext">Returns the process identifier of a new process started by the
+Throws when called not in process context.</pre></div></div><div class="public anchor" id="var-spawn"><h3>spawn</h3><div class="usage"><code>(spawn proc-func args {:keys [link-to inbox flags register], pname :name, :as options})</code></div><div class="doc"><pre class="plaintext">Returns the process identifier of a new process started by the
 application of proc-fun to args.
 options argument is a map of option names (keyword) to its values.
 
-When :link-to contains pid(s) of already exited processes, spawned
+When :link-to contains pid(s) of already exited process(es), spawned
 process exits with reason :noproc just after the start.
+
+The default process' inbox is blocking buffered channel of size 1024.
+The :inbox option allows providing a custom channel.
 
 The following options are allowed:
 :flags - a map of process' flags (e.g. {:trap-exit true})
-:register - any valid name to register process
-:link-to - pid or sequence of pids to link process to
-:inbox-size - </pre></div></div><div class="public anchor" id="var-spawn-link"><h3>spawn-link</h3><div class="usage"><code>(spawn-link proc-func args opts)</code></div><div class="doc"><pre class="plaintext">Returns the process identifier of a new process started by the
+:register - any valid name to register the process
+:link-to - a pid or a sequence of pids to link process to
+:inbox - the channel to be used as a process' inbox</pre></div></div><div class="public anchor" id="var-spawn-link"><h3>spawn-link</h3><div class="usage"><code>(spawn-link proc-func args opts)</code></div><div class="doc"><pre class="plaintext">Returns the process identifier of a new process started by the
 application of proc-fun to args. A link is created between the
 calling process and the new process, atomically. Otherwise works
 like spawn.
