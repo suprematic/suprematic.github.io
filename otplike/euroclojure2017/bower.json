@@ -1,0 +1,12 @@
+ {
+  "name": "otplike.euroclojure2017",
+  "dependencies": {
+  		"reveal.js": "~3.5.0"
+  	},
+
+  "preen": {
+    "headjs": [
+      "dist/**"
+    ]
+  }
+ }

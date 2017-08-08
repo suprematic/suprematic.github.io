@@ -1,0 +1,118 @@
+@font-face {
+  font-family: 'Exo 2';
+  font-style: normal;
+  font-weight: 400;
+  src: local('Exo 2'), local('Exo2-Regular'), url(fonts/Exo_2/Exo2-Regular.ttf) format('truetype');
+}
+
+@font-face {
+  font-family: 'Roboto Condensed';
+  font-style: normal;
+  font-weight: 400;
+  src: local('Roboto Condensed'), local('RobotoCondensed-Regular'), url(fonts/Roboto_Condensed/RobotoCondensed-Regular.ttf) format('truetype');
+}
+
+body {
+  background-attachment: fixed;
+  background-image: url('img/background.jpg');
+}
+
+em {
+	_color: blue;
+}
+
+strong {
+	color: #bc0000;
+}
+
+.current-fragment {
+  color: #bc0000;
+}
+
+.reveal h1, .reveal h2, .reveal h3, .reveal h4, .reveal h5, .reveal h6 {
+  text-transform: none;
+  font-family:  'Roboto Condensed';
+}
+
+.reveal h3 {
+  margin-bottom: 1em;
+}
+
+.reveal section {
+  font-family:  'Exo 2';
+}
+
+.reveal section li::first-letter {
+  text-transform: uppercase;
+}
+
+
+
+.reveal #right pre, .reveal #left pre {
+	box-shadow: none;
+	width: 100%;
+}
+
+code.hljs {
+	padding-bottom: 2em !important;
+}
+
+#left code.hljs, #right code.hljs {
+  min-height: 5em;
+}
+
+
+.reveal pre code {
+	max-height: inherit;
+}
+
+.reveal section img {
+	border: 1px solid black;
+}
+
+section.present {
+	height: 100%;
+	width: 100%;
+}
+
+
+#left {
+  text-align: left;
+  float: left;
+  width:50%;
+  z-index:-10;
+}
+
+#right {
+  left:31.25%;
+  top: 75px;
+  float: right;
+  text-align: right;
+  z-index:-10;
+  width:49%;
+}
+
+
+#sup_logo {
+  width: 80px;
+  height: 80px;
+  position: fixed;
+  bottom: 1em;
+  left: 1em;
+  z-index: 100;
+  _background-position: center;
+  _background-size: contain;
+  _background-image: url('img/red_square.jpg');
+}
+
+
+#_sup_logo a {
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    left: 0;
+    top: 0;
+}
+
+
+

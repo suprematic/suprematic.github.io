@@ -1,0 +1,445 @@
+<html>
+	<head>
+		<link rel="stylesheet" href="bower_components/reveal.js/css/reveal.css">
+		<link rel="stylesheet" href="bower_components/reveal.js/css/theme/white.css">
+		<link rel="stylesheet" href="bower_components/reveal.js/lib/css/zenburn.css">
+		<link rel="stylesheet" href="style.css">
+
+		<title>
+			otplike – Erlang/OTP processes and behaviours for Clojure
+		</title>
+	</head>
+	<body>
+		<a id="sup_logo" target="_blank" href="http://www.suprematic.net" >
+			<img src="img/red_square.jpg" width="80" height="80">
+		</a>
+
+		<div >
+		</div>
+
+		<div class="reveal">
+			<div class="slides">
+				<section data-markdown><textarea data-template>
+					<br>
+					## otplike – Erlang/OTP processes and behaviours for Clojure  
+					</br>
+
+					 ### Alexey Aristov, __SUPREMATIC__
+
+					<br>
+
+					 ## EuroClojure 2017
+					 ## Berlin, Germany
+
+				</textarea></section>
+
+				<section data-markdown><textarea data-template>
+					### _core.async_ recap
+						
+					* Foundation for async programs in Clojure and ClojureScript 
+					* Go Blocks (lightweight processes) <!-- .element: class="fragment"-->
+					* Channels <!-- .element: class="fragment"-->
+					* Useful primitives (i.e. alt, mult/tap/untap, pub/sub/unsub) <!-- .element: class="fragment"-->
+					* Similiar for Clojure and ClojureScript <!-- .element: class="fragment"-->
+
+					Great library, but too low level <!-- .element: class="fragment"-->
+				</textarea></section>
+
+				<section>
+					<h3><em>core.async</em> pitfalls</h3>
+
+					<div id="left" data-markdown><textarea data-template>
+						Producer
+
+						```clojure
+						(go-loop
+						   (>! chan {:some-data (prepare-data)})
+						   (recur))
+						   &nbsp;
+						```
+					</textarea></div>
+
+					<div id="right" data-markdown><textarea data-template style="min-height: 5em" >
+						Consumer <!-- .element: style="text-align: left;"-->
+
+						```clojure 
+						(go-loop
+						   (when-let [data (<&excl; chan)]
+						     (process data)
+						     (recur))
+						``` 
+					</textarea></div>
+
+					<div data-markdown><textarea data-template>
+						* high chance of lock if errors are not handled. <!-- .element: class="fragment"-->
+						* Who 'owns' the channel? <!-- .element: class="fragment"-->
+						* What if there are several consumers? <!-- .element: class="fragment"-->
+					</textarea></div>
+				</section>
+
+
+
+				<section data-markdown><textarea data-template>
+					### Erlang/OTP recap
+
+					* Functional language developed by Ericsson in 1986.
+					* Lightweight processes as a building block. <!-- .element: class="fragment"-->
+					* Proven design patterns. <!-- .element: class="fragment"-->
+					* Built-in distribution. <!-- .element: class="fragment"-->
+					* Arguably weird syntax. <!-- .element: class="fragment"-->
+
+					<pre class="fragment"><code data-trim data-noescape>
+					factorial_server() ->
+						receive
+							{From, N} ->
+								From ! fact(N),
+							factorial_server()
+						end. 
+					</code></pre>
+				</textarea></section>
+
+				<section data-markdown><textarea data-template>
+					### otplike
+
+					* Simple pure Clojure library.
+					* Built on top of core.async and core.match. <!-- .element: class="fragment"-->
+					* Emulates a small subset Erlang/OTP features. <!-- .element: class="fragment"-->
+					* In no way replacement for Erlang/OTP. <!-- .element: class="fragment"-->
+				</textarea></section>
+
+				<section data-markdown><textarea data-template>
+					### otplike / process - Introduction
+
+					* Go block + inbox + control structures.
+					* You can send messages to process. <!-- .element: class="fragment"-->
+					* Process can receive and handle messages. <!-- .element: class="fragment"-->
+					* Process definition looks like a function definition. <!-- .element: class="fragment"-->
+					* Start process with the otplike/spawn function. <!-- .element: class="fragment"-->
+					* Started process is identified by it's PID. <!-- .element: class="fragment"-->
+					* Possible to register a process under a global name. <!-- .element: class="fragment"-->
+				</textarea></section>
+
+				<section data-markdown><textarea data-template>
+					### otplike / process - Example
+
+					```clojure
+					(ns hello-process
+					  (:require [otplike.process :as process :refer [! proc-defn receive!]]))	
+
+					(proc-defn hello-world []
+					  (receive!
+					    msg (println msg)))
+
+					(let [pid (process/spawn hello-world)]
+					  (! pid "Hello, world"))
+					```
+				</textarea></section>
+
+
+				<section data-markdown><textarea data-template>
+					###  otplike / process - Receive
+					```clojure
+					(proc-defn hello-world []
+					  (receive!
+					    [:print message]
+					    (do
+					      (println message)
+					      (recur))
+
+					    :exit
+					    nil
+
+					    (after 500
+					      (println "receive timeout")
+					      (recur))))
+					```
+
+					* Pattern matching with core.match. 
+					* Crash if no matching pattern available. <!-- .element: class="fragment"-->
+					* Timeout handling with receive. <!-- .element: class="fragment"-->
+				</textarea></section>
+
+				<section data-markdown><textarea data-template>
+					### otplike / process - Linking 
+
+					* Special connection between processes.
+					* When one of two processes exits, another also exits.
+
+					![](img/link-exit.png)
+
+					* Bi-directional and atomic. <!-- .element: class="fragment"-->
+					* Very important for error recovery and supervision. <!-- .element: class="fragment"-->
+					* Crash all related processes and restart whole group. <!-- .element: class="fragment"-->
+				</textarea></section>
+
+				<section data-markdown><textarea data-template>
+					### otplike / process - Linking 
+					```clojure
+					(proc-defn process2 []
+					  (receive!
+					    [:message m]
+					    (println message))
+					  (recur))
+
+					(proc-defn process1 []
+					  (let [p2 (process/spawn-link process2)]
+					    (receive 
+					      m
+					      (! p2 m))
+					    (recur)))
+
+					(let [p1 (process/spawn process1)]
+					  (! p1 :unsupported-message))
+					```
+
+					* Use spawn-link instead of spawn to start a linked process
+					* link and unlink functions are also available. <!-- .element: class="fragment"-->
+				</textarea></section>
+
+
+				<section data-markdown><textarea data-template>
+					### otplike / process - Trap Exit
+
+					```clojure
+					(proc-defn process1 []
+					  (process/flag :trap-exit true)
+					  (loop [p2 (process/spawn-link process2)]
+					    (receive!
+						  [:EXIT p2 reason]
+						  (recur (process/spawn-link process2))
+					      m
+					      (do
+					        (! p2 m)
+					        (recur p2)))))
+
+					(let [p1 (process/spawn process1)]
+					  (! p1 :unsupported-message))
+					```
+
+					* trap-exit process flag converts exit to regular messages.
+					* without it, any single crash would destroy a whole system. <!-- .element: class="fragment"-->
+					* It is the way to stop crash propagation. <!-- .element: class="fragment"-->
+				</textarea></section>
+
+
+			
+
+				<section data-markdown><textarea data-template>
+					### otplike / _gen-server_ introduction
+
+					* Interact synchroniously or asynchroniously.
+					* Synchronized access to state. <!-- .element: class="fragment"-->
+					* State consitency guarantee. <!-- .element: class="fragment"-->
+					* Discard state on crash. <!-- .element: class="fragment"-->
+					* Internally it's just a process. <!-- .element: class="fragment"-->
+					* can be linked to other processes. <!-- .element: class="fragment"-->
+					* can trap exits. <!-- .element: class="fragment"-->
+					* Can be seen as a microservice. <!-- .element: class="fragment"-->
+				</textarea></section>
+
+
+				<section data-markdown><textarea data-template>
+					### otplike / _gen-server_ behaviour
+
+					```clojure
+					; provide initial state (required!)
+					(defn init [some args]
+					   [:ok {:p1 some :p2 args}])
+
+					; handle sync requests
+					(defn handle-call [message from state]
+						[:reply :ok state])
+
+					; handle async requests	
+					(defn handle-cast [message state]
+						[:noreply state])
+					```
+
+					* is a protocol implementation (IGenServer).
+					* alternatively a namespace with functions (well-known names). <!-- .element: class="fragment"-->
+				</textarea></section>
+
+
+				<section data-markdown><textarea data-template>
+					### otplike / _gen-server_ example
+
+					```clojure
+					(require '[otplike.gen-server :as gs])
+
+					; provide initial state (required!)
+					(defn init []
+					   [:ok {}])
+
+					; handle sync requests
+					(defn handle-call [message from state]
+					  (match message 
+					    [::add a1 a2]
+					    [:reply (+ a1 a2) state]))
+
+					(defn add [server a1 a2]
+					  (gs/call server [::add a1 a2]))  	
+
+					(let [[_ server] (gs/start-ns [])]
+					  (println "2 + 3 = " (add server 2 3)))
+					```
+				</textarea></section>
+
+
+				<section data-markdown><textarea data-template>
+					### otplike /  _gen-server_ 
+
+					```clojure
+					(defn init [some args]
+					   [:ok {::count 0}])
+
+					(defn handle-call [message from state]
+					  (match message 
+					    [::add a1 a2]
+					    [:reply (+ a1 a2) (update-in state [::count] inc)]
+
+					    ::count
+					    [:reply (::count state) state]))
+
+					(defn add [a1 a2]
+					  (gs/call ::my-service [::add a1 a2]))
+
+					(defn get-count [a1 a2]
+					  (gs/call ::my-service ::count))  	
+
+					(gs/start-ns ::my-service [] {}) 
+					(println "2 + 3 = " (add 2 3) " / execution count: " (get-count))
+					```
+				</textarea></section>
+
+
+				<section data-markdown><textarea data-template>
+					### otplike / Supervisors
+
+					* responsible for starting gen-servers. 
+					* re-starts them in case they will crash. <!-- .element: class="fragment"-->
+					* supervisor is a special gen-server. <!-- .element: class="fragment" -->
+					* has start specifications (id, start function and arguments). <!-- .element: class="fragment"-->
+					* initially starts its children (gen-servers or other supervisors). <!-- .element: class="fragment"-->
+					* re-starts them if they crash. <!-- .element: class="fragment"-->
+					* re-start strategies: one-for-one, one-for-all, one-for-rest. <!-- .element: class="fragment"-->
+				</textarea></section>
+
+				<section data-markdown><textarea data-template>
+					### otplike / Supervision tree
+
+					![](img/sup-tree.png)
+
+					* application is designed as tree of _gen-servers_ and _supervisors_
+
+				</textarea></section>
+
+				<section data-markdown><textarea data-template>
+					### otplike / Supervision tree - Example
+					```clojure
+					(defn- sup-fn [config]
+					  [:ok
+					   [{:strategy :one-for-all}
+					    [{:id :config      :start [config-server/start-link [config]]}
+					     {:id :http-server :start [http/start-link [(:http-port config) routes/app]]}
+					     {:id :db          :start [db/start-link []]}
+					     {:id :session-sup :start [ws/start-link-sup []]}
+					     {:id :repo-base   :start [repo-base/start-link [(:repo-base config)]]}
+					     {:id :opfile-sup  :start [opfiles-sup [config]]}
+					     {:id :rsync       :start [rsync/start-link [config]]}]]])
+
+					(process/proc-defn p-boot [config]
+					  (process/flag :trap-exit true)
+
+					  (match (supervisor/start-link sup-fn [config])
+					    [:ok sup-pid]
+						(process/receive!
+						  [:EXIT sup-pid reason]
+						  (log/debugf "root supervisor terminated with reason=%s" reason))
+
+					    [:error reason]
+					    (log/errorf "cannot start root supervisor: %s" reason)))
+					```
+				</textarea></section>
+
+				<section data-markdown><textarea data-template>
+					### Conclusion
+					* we see _otplike_ as a very useful extension to our toolbox.
+					* currently _otplike_ is used in two major projects:
+					  * automotive / engineering;
+					  * banking.
+					* next steps:
+					  * get it running in browser (ClojureScript);
+					  * application support;
+					  * some distribution capabilities;
+					  * more advanced process registry (something like _gproc_).
+				</textarea></section>
+
+				<section data-markdown><textarea data-template>
+					### Links and Information
+					
+					* otplike - [https://github.com/suprematic/otplike](https://github.com/suprematic/otplike)
+					* Erlang/OTP - [http://learnyousomeerlang.com/content](http://learnyousomeerlang.com/content)
+					  * pictures used in this presentation are borrowed from it
+					* Twitter - [@suprematic_aav](http://www.twitter.com/suprematic_aav)
+					* Our Company - [www.suprematic.net](http://www.suprematic.net)
+				</textarea></section>
+
+				<section data-markdown><textarea data-template>
+					</br></br>
+					# Q&A
+				</textarea></section>
+
+					<section data-markdown><textarea data-template>
+					### otplike / timer functions
+					```clojure
+					(proc-defn []
+					    (interface/light-off!)
+						(timer/send-interval 10000 :light-on)
+
+						(loop []
+						  (receive!
+						    :light-on
+						    (do 
+						       (interface/light-on!)
+						       (timer/send-after 1000 :light-off))
+
+						    :light-off
+						    (interface/light-off!))
+						   (recur)))
+					```
+					* send message after delay  <!-- .element: class="fragment"-->
+					* send messages with regular interval <!-- .element: class="fragment"-->
+				</textarea></section>
+ 			</div>
+		</div>
+
+		<script src="bower_components/reveal.js/lib/js/head.min.js"></script>
+		<script src="bower_components/reveal.js/js/reveal.js"></script>
+		<script>
+			Reveal.initialize({
+				width:  1280,   // WXGA
+				height: 800,
+				transition: 'none',
+				controls: true,
+				history:  true,
+				fragments: false,
+
+				slideNumber: 'c/t',
+
+				keyboard: {
+   				 33: 'next', 
+    		  	 34: 'prev' 
+                },
+
+				dependencies: [
+					{ src: 'bower_components/reveal.js/plugin/highlight/highlight.js', callback: function() { hljs.initHighlightingOnLoad();}},
+					{ src: 'bower_components/reveal.js/plugin/markdown/marked.js', condition: function() { return !!document.querySelector( '[data-markdown]' );}},
+					{ src: 'bower_components/reveal.js/plugin/markdown/markdown.js', condition: function() { return !!document.querySelector( '[data-markdown]' );}}
+				]
+			});
+		</script>
+	</body>
+</html>
+
+
+			
